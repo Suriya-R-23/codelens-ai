@@ -95,6 +95,14 @@ app.post('/api/edit', async (req, res) => {
 });
 
 const PORT = 3001;
-app.listen(PORT, () => {
+app.listen(PORT, (error) => {
+  if (error) {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use. Is the server already running in another terminal?`);
+    } else {
+      console.error(error);
+    }
+    process.exit(1);
+  }
   console.log(`CodeLens AI server running on http://localhost:${PORT}`);
 });
