@@ -9,7 +9,11 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 
 // Reads GEMINI_API_KEY from the environment (see .env.example).
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// If Google's servers are busy (e.g. error 503), try up to 3 times before giving up.
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: { retryOptions: { attempts: 3 } },
+});
 
 const SYSTEM_PROMPT = `You are the code-editing engine inside CodeLens AI, a visual web editor.
 The user describes a change in plain English. You get the current project files.
@@ -79,6 +83,9 @@ app.post('/api/edit', async (req, res) => {
     console.error(error);
     if (error instanceof ApiError && error.status === 429) {
       return res.status(429).json({ error: 'Free-tier limit reached, wait a minute and try again.' });
+    }
+    if (error instanceof ApiError && error.status === 503) {
+      return res.status(503).json({ error: 'Gemini is busy right now, try again in a few seconds.' });
     }
     if (error instanceof ApiError && error.status === 400) {
       return res.status(500).json({ error: 'Invalid or missing GEMINI_API_KEY.' });
