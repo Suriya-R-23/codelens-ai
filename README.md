@@ -4,7 +4,7 @@ An AI-powered visual web editor: code editor on the left, live preview on the ri
 
 ## Running locally
 
-You need Node.js 20.6 or newer and an Anthropic API key.
+You need Node.js 20.6 or newer and a free Gemini API key from https://aistudio.google.com/apikey.
 
 1. Install packages: `npm install`
 2. Copy `.env.example` to `.env` and put your API key in it

@@ -11,8 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0",
     "@codesandbox/sandpack-react": "^2.20.0",
+    "@google/genai": "^2.24.0",
     "@monaco-editor/react": "^4.7.0",
     "express": "^5.2.1",
     "react": "^19.2.8",

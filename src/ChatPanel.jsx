@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSandpack } from '@codesandbox/sandpack-react';
 
-// Applies Claude's find/replace edits to a copy of the files.
+// Applies the AI's find/replace edits to a copy of the files.
 // If any edit can't be matched exactly once, nothing is applied.
 function applyEdits(files, edits) {
   const updated = {};

@@ -1,15 +1,15 @@
 // Small backend for CodeLens AI.
-// The browser sends { request, files } here, we ask Claude for the smallest
+// The browser sends { request, files } here, we ask Gemini for the smallest
 // edit, and send back a list of find/replace edits. The API key lives only on
 // this server, never in the browser.
 import express from 'express';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI, ApiError } from '@google/genai';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
-// Reads ANTHROPIC_API_KEY from the environment (see .env.example).
-const client = new Anthropic();
+// Reads GEMINI_API_KEY from the environment (see .env.example).
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const SYSTEM_PROMPT = `You are the code-editing engine inside CodeLens AI, a visual web editor.
 The user describes a change in plain English. You get the current project files.
@@ -24,7 +24,7 @@ Return edits as find/replace pairs:
 Do not rewrite whole files. Do not change anything the user did not ask for.
 If the request cannot be done, return an empty "edits" list and say why in "explanation".`;
 
-// The JSON shape Claude must answer with (structured outputs).
+// The JSON shape Gemini must answer with.
 const EDIT_SCHEMA = {
   type: 'object',
   properties: {
@@ -53,45 +53,35 @@ app.post('/api/edit', async (req, res) => {
     return res.status(400).json({ error: 'Send { request, files }.' });
   }
 
-  // Put each file in the prompt with its path so Claude knows what exists.
+  // Put each file in the prompt with its path so the AI knows what exists.
   const filesText = Object.entries(files)
     .map(([path, code]) => `<file path="${path}">\n${code}\n</file>`)
     .join('\n\n');
 
   try {
-    const response = await client.beta.messages.create({
-      model: 'claude-opus-5',
-      max_tokens: 16000,
-      // If Claude declines a request, retry it on a recommended backup model.
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      output_config: {
-        effort: 'low', // small edits don't need deep thinking; keeps it fast
-        format: { type: 'json_schema', schema: EDIT_SCHEMA },
+    const response = await ai.models.generateContent({
+      model: 'gemini-flash-latest', // free-tier model
+      contents: `Current files:\n\n${filesText}\n\nRequest: ${request}`,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        responseMimeType: 'application/json',
+        responseJsonSchema: EDIT_SCHEMA,
       },
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Current files:\n\n${filesText}\n\nRequest: ${request}`,
-        },
-      ],
     });
 
-    if (response.stop_reason === 'refusal') {
-      return res.status(422).json({ error: 'The AI declined this request.' });
+    if (!response.text) {
+      return res.status(422).json({ error: 'The AI returned no answer. Try rephrasing.' });
     }
 
-    const textBlock = response.content.find((block) => block.type === 'text');
-    const result = JSON.parse(textBlock.text);
+    const result = JSON.parse(response.text);
     res.json(result);
   } catch (error) {
     console.error(error);
-    if (error instanceof Anthropic.AuthenticationError) {
-      return res.status(500).json({ error: 'Invalid or missing ANTHROPIC_API_KEY.' });
+    if (error instanceof ApiError && error.status === 429) {
+      return res.status(429).json({ error: 'Free-tier limit reached, wait a minute and try again.' });
     }
-    if (error instanceof Anthropic.RateLimitError) {
-      return res.status(429).json({ error: 'Rate limited, try again in a moment.' });
+    if (error instanceof ApiError && error.status === 400) {
+      return res.status(500).json({ error: 'Invalid or missing GEMINI_API_KEY.' });
     }
     res.status(500).json({ error: 'Something went wrong talking to the AI.' });
   }
