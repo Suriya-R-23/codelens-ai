@@ -1,5 +1,6 @@
 import { SandpackProvider, SandpackPreview, useSandpack } from '@codesandbox/sandpack-react';
 import Editor from '@monaco-editor/react';
+import ChatPanel from './ChatPanel';
 import './App.css';
 
 const initialFiles = {
@@ -61,9 +62,7 @@ function Layout() {
         </div>
       </div>
       <div className="bottom-row">
-        <div className="chat-placeholder">
-          AI chat goes here (coming in the next step)
-        </div>
+        <ChatPanel />
       </div>
     </div>
   );
