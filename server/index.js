@@ -9,10 +9,10 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 
 // Reads GEMINI_API_KEY from the environment (see .env.example).
-// If Google's servers are busy (e.g. error 503), try up to 3 times before giving up.
+// If Google's servers are busy (e.g. error 503), try up to 2 times per model.
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: { retryOptions: { attempts: 3 } },
+  httpOptions: { retryOptions: { attempts: 2 } },
 });
 
 const SYSTEM_PROMPT = `You are the code-editing engine inside CodeLens AI, a visual web editor.
@@ -27,6 +27,26 @@ Return edits as find/replace pairs:
 - "replace" is the new text that takes its place.
 Do not rewrite whole files. Do not change anything the user did not ask for.
 If the request cannot be done, return an empty "edits" list and say why in "explanation".`;
+
+// Free-tier models to try, in order. If one is busy (503) or not available
+// to this key (404), the next one is tried.
+const MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+
+// Asks each model in turn until one answers.
+async function generateWithFallback(request) {
+  let lastError;
+  for (const model of MODELS) {
+    try {
+      return await ai.models.generateContent({ ...request, model });
+    } catch (error) {
+      const canTryNext = error instanceof ApiError && [503, 404].includes(error.status);
+      if (!canTryNext) throw error;
+      console.warn(`${model} failed with ${error.status}, trying the next model...`);
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
 
 // The JSON shape Gemini must answer with.
 const EDIT_SCHEMA = {
@@ -63,8 +83,7 @@ app.post('/api/edit', async (req, res) => {
     .join('\n\n');
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-flash-latest', // free-tier model
+    const response = await generateWithFallback({
       contents: `Current files:\n\n${filesText}\n\nRequest: ${request}`,
       config: {
         systemInstruction: SYSTEM_PROMPT,
