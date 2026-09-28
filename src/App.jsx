@@ -23,6 +23,20 @@ const initialFiles = {
 }`,
 };
 
+// Tells Monaco which syntax highlighting to use, based on the file extension.
+const LANGUAGES = {
+  js: 'javascript',
+  jsx: 'javascript',
+  css: 'css',
+  html: 'html',
+  json: 'json',
+};
+
+function getLanguage(filePath) {
+  const extension = filePath.split('.').pop();
+  return LANGUAGES[extension] ?? 'plaintext';
+}
+
 function Layout() {
   const { sandpack } = useSandpack();
   const { files, activeFile, setActiveFile, updateFile } = sandpack;
@@ -45,7 +59,7 @@ function Layout() {
           <div className="editor-wrapper">
             <Editor
               height="100%"
-              language="javascript"
+              language={getLanguage(activeFile)}
               theme="vs-dark"
               value={files[activeFile].code}
               onChange={(value) => updateFile(activeFile, value ?? '')}
