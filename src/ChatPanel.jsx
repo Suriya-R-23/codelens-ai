@@ -94,6 +94,11 @@ export default function ChatPanel() {
     if (!request || loading) return;
 
     setInput('');
+    // If the AI is waiting on a question, a typed message counts as the answer.
+    if (pending) {
+      answerQuestion(request);
+      return;
+    }
     addMessage({ role: 'user', text: request });
     askAI(request);
   }
@@ -130,7 +135,7 @@ export default function ChatPanel() {
           className="chat-input"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Describe a change…"
+          placeholder={pending ? 'Pick an option above or type your answer…' : 'Describe a change…'}
           disabled={loading}
         />
         <button className="chat-send" type="submit" disabled={loading || !input.trim()}>
