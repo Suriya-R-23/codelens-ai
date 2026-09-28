@@ -58,7 +58,7 @@ export default function ChatPanel({ reviewing, onChange, selected, onClearSelect
       const response = await fetch('/api/edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request, files: currentCode }),
+        body: JSON.stringify({ request, files: currentCode, selected }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
@@ -139,7 +139,7 @@ export default function ChatPanel({ reviewing, onChange, selected, onClearSelect
         {loading && <div className="chat-message ai">Thinking…</div>}
       </div>
       {selected && (
-        <div className="selection-chip">
+        <div className="selection-chip" title="Your next request will apply to this element">
           🎯 Selected: &lt;{selected.tag}&gt; {selected.text && `“${selected.text.slice(0, 30)}”`}
           <button onClick={onClearSelection} title="Clear selection">✕</button>
         </div>
@@ -154,7 +154,9 @@ export default function ChatPanel({ reviewing, onChange, selected, onClearSelect
               ? 'Keep or reject the AI change first (buttons above the editor)'
               : pending
                 ? 'Pick an option above or type your answer…'
-                : 'Describe a change…'
+                : selected
+                  ? `Describe a change to the selected <${selected.tag}>…`
+                  : 'Describe a change…'
           }
           disabled={loading || reviewing}
         />
