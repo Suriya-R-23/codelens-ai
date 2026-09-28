@@ -48,6 +48,39 @@
   color: #fff;
 }
 
+.review-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #2d2a12;
+  border-bottom: 1px solid #5c5320;
+  color: #f0e6a8;
+  font-family: sans-serif;
+  font-size: 13px;
+}
+
+.review-bar span {
+  flex: 1;
+}
+
+.review-bar button {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.review-keep {
+  background: #16a34a;
+}
+
+.review-reject {
+  background: #dc2626;
+}
+
 .editor-wrapper {
   flex: 1;
   min-height: 0;

@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { SandpackProvider, SandpackPreview, useSandpack } from '@codesandbox/sandpack-react';
-import Editor from '@monaco-editor/react';
+import Editor, { DiffEditor } from '@monaco-editor/react';
 import ChatPanel from './ChatPanel';
 import './App.css';
 
@@ -41,6 +42,31 @@ function Layout() {
   const { sandpack } = useSandpack();
   const { files, activeFile, setActiveFile, updateFile } = sandpack;
 
+  // An AI change waiting for the user to keep or reject it, e.g.
+  // { '/App.js': { before: '...old code...', after: '...new code...' } }
+  const [review, setReview] = useState(null);
+
+  // The AI's edits are already applied, so the preview shows the "after".
+  // Here we remember the "before" so the change can be rejected.
+  function startReview(changes) {
+    setReview(changes);
+    setActiveFile(Object.keys(changes)[0]);
+  }
+
+  function keepChange() {
+    setReview(null);
+  }
+
+  function rejectChange() {
+    for (const [path, { before }] of Object.entries(review)) {
+      updateFile(path, before);
+    }
+    setReview(null);
+  }
+
+  // While reviewing, show the diff of the open file (or the first changed file).
+  const reviewFile = review && (review[activeFile] ? activeFile : Object.keys(review)[0]);
+
   return (
     <div className="app-shell">
       <div className="top-row">
@@ -56,15 +82,33 @@ function Layout() {
               </div>
             ))}
           </div>
+          {review && (
+            <div className="review-bar">
+              <span>Review the AI change: red = removed, green = added</span>
+              <button className="review-keep" onClick={keepChange}>Keep</button>
+              <button className="review-reject" onClick={rejectChange}>Reject</button>
+            </div>
+          )}
           <div className="editor-wrapper">
-            <Editor
-              height="100%"
-              language={getLanguage(activeFile)}
-              theme="vs-dark"
-              value={files[activeFile].code}
-              onChange={(value) => updateFile(activeFile, value ?? '')}
-              options={{ minimap: { enabled: false }, fontSize: 14 }}
-            />
+            {review ? (
+              <DiffEditor
+                height="100%"
+                language={getLanguage(reviewFile)}
+                theme="vs-dark"
+                original={review[reviewFile].before}
+                modified={review[reviewFile].after}
+                options={{ readOnly: true, minimap: { enabled: false }, fontSize: 14 }}
+              />
+            ) : (
+              <Editor
+                height="100%"
+                language={getLanguage(activeFile)}
+                theme="vs-dark"
+                value={files[activeFile].code}
+                onChange={(value) => updateFile(activeFile, value ?? '')}
+                options={{ minimap: { enabled: false }, fontSize: 14 }}
+              />
+            )}
           </div>
         </div>
         <div className="right-pane">
@@ -76,7 +120,7 @@ function Layout() {
         </div>
       </div>
       <div className="bottom-row">
-        <ChatPanel />
+        <ChatPanel reviewing={review !== null} onChange={startReview} />
       </div>
     </div>
   );
