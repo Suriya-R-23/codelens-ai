@@ -17,16 +17,30 @@ const ai = new GoogleGenAI({
 
 const SYSTEM_PROMPT = `You are the code-editing engine inside CodeLens AI, a visual web editor.
 The user describes a change in plain English. You get the current project files.
-Make the smallest possible code change that does what they asked.
 
-Return edits as find/replace pairs:
+First decide if the request is clear enough to act on.
+
+Ask a clarifying question (type "clarify") only when the request could reasonably
+mean two or more different elements or changes, and picking the wrong one would
+give a clearly different result. Example: "make the background red" when both the
+page and a button have a background. Then:
+- "question" is one short, friendly question.
+- "options" are 2 to 4 short answers the user can click (e.g. "Page background").
+- "edits" is empty.
+If the request already includes the user's answer to an earlier question, do not
+ask again. If there is one obvious reading, do not ask. Just make the edit.
+
+Otherwise make the smallest possible code change (type "edit"), as find/replace pairs:
 - "file" is the file path exactly as given (e.g. "/App.js").
 - "find" must be copied exactly from the current file, including spaces and
   indentation, and must appear exactly once in that file. Keep it short, but
   long enough to be unique.
 - "replace" is the new text that takes its place.
 Do not rewrite whole files. Do not change anything the user did not ask for.
-If the request cannot be done, return an empty "edits" list and say why in "explanation".`;
+Set "question" to "" and "options" to [].
+
+"explanation" always briefly says what you did or why you are asking.
+If the request cannot be done, use type "edit" with an empty "edits" list and say why.`;
 
 // Free-tier models to try, in order. If one is busy (503) or not available
 // to this key (404), the next one is tried.
@@ -48,11 +62,14 @@ async function generateWithFallback(request) {
   throw lastError;
 }
 
-// The JSON shape Gemini must answer with.
+// The JSON shape Gemini must answer with: either an edit or a clarifying question.
 const EDIT_SCHEMA = {
   type: 'object',
   properties: {
+    type: { type: 'string', enum: ['edit', 'clarify'] },
     explanation: { type: 'string' },
+    question: { type: 'string' },
+    options: { type: 'array', items: { type: 'string' } },
     edits: {
       type: 'array',
       items: {
@@ -67,7 +84,7 @@ const EDIT_SCHEMA = {
       },
     },
   },
-  required: ['explanation', 'edits'],
+  required: ['type', 'explanation', 'question', 'options', 'edits'],
   additionalProperties: false,
 };
 
@@ -97,6 +114,11 @@ app.post('/api/edit', async (req, res) => {
     }
 
     const result = JSON.parse(response.text);
+
+    // A question with nothing to click isn't useful, so treat it as an edit reply.
+    if (result.type === 'clarify' && result.options.length === 0) {
+      result.type = 'edit';
+    }
     res.json(result);
   } catch (error) {
     console.error(error);

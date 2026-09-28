@@ -34,19 +34,17 @@ export default function ChatPanel() {
     box.scrollTop = box.scrollHeight;
   }, [messages, loading]);
 
-  function addMessage(role, text) {
-    setMessages((prev) => [...prev, { role, text }]);
+  // The question the AI is waiting for an answer to, e.g.
+  // { request: "make the background red", question: "Which background?" }
+  const [pending, setPending] = useState(null);
+
+  function addMessage(message) {
+    setMessages((prev) => [...prev, message]);
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    const request = input.trim();
-    if (!request || loading) return;
-
-    addMessage('user', request);
-    setInput('');
+  // Sends a request to the AI, then either applies its edits or shows its question.
+  async function askAI(request) {
     setLoading(true);
-
     try {
       // Send only the code for each file (Sandpack stores extra info too).
       const currentCode = {};
@@ -62,16 +60,47 @@ export default function ChatPanel() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
+      if (data.type === 'clarify') {
+        addMessage({ role: 'ai', text: data.question, options: data.options });
+        setPending({ request, question: data.question });
+        return;
+      }
+
       const updated = applyEdits(files, data.edits);
       for (const [path, code] of Object.entries(updated)) {
         updateFile(path, code);
       }
-      addMessage('ai', data.explanation);
+      addMessage({ role: 'ai', text: data.explanation });
     } catch (error) {
-      addMessage('error', error.message);
+      addMessage({ role: 'error', text: error.message });
     } finally {
       setLoading(false);
     }
+  }
+
+  // The user answered the AI's question: send the original request plus the answer.
+  function answerQuestion(answer) {
+    if (!pending || loading) return;
+    addMessage({ role: 'user', text: answer });
+    // Grey out the option buttons so they can't be clicked twice.
+    setMessages((prev) => prev.map((message) => ({ ...message, answered: true })));
+    setPending(null);
+    askAI(`${pending.request}\n\nClarifying question: ${pending.question}\nUser's answer: ${answer}`);
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const request = input.trim();
+    if (!request || loading) return;
+
+    setInput('');
+    // If the AI is waiting on a question, a typed message counts as the answer.
+    if (pending) {
+      answerQuestion(request);
+      return;
+    }
+    addMessage({ role: 'user', text: request });
+    askAI(request);
   }
 
   return (
@@ -83,6 +112,20 @@ export default function ChatPanel() {
         {messages.map((message, index) => (
           <div key={index} className={`chat-message ${message.role}`}>
             {message.text}
+            {message.options && (
+              <div className="chat-options">
+                {message.options.map((option) => (
+                  <button
+                    key={option}
+                    className="chat-option"
+                    onClick={() => answerQuestion(option)}
+                    disabled={message.answered || loading}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && <div className="chat-message ai">Thinking…</div>}
@@ -92,7 +135,7 @@ export default function ChatPanel() {
           className="chat-input"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Describe a change…"
+          placeholder={pending ? 'Pick an option above or type your answer…' : 'Describe a change…'}
           disabled={loading}
         />
         <button className="chat-send" type="submit" disabled={loading || !input.trim()}>
