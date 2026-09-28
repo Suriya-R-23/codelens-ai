@@ -1,3 +1,19 @@
+# CodeLens AI
+
+An AI-powered visual web editor: code editor on the left, live preview on the right, and an AI chat at the bottom that makes small, targeted code edits.
+
+## Running locally
+
+You need Node.js 20.6 or newer and a free Gemini API key from https://aistudio.google.com/apikey.
+
+1. Install packages: `npm install`
+2. Copy `.env.example` to `.env` and put your API key in it
+3. Start the backend: `npm run server` (runs on port 3001)
+4. In a second terminal, start the frontend: `npm run dev`
+5. Open the URL Vite prints, then type something like "make the button red" in the chat
+
+---
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

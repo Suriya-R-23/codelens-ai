@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node --env-file=.env server/index.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
+    "@google/genai": "^2.24.0",
     "@monaco-editor/react": "^4.7.0",
+    "express": "^5.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
