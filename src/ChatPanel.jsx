@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSandpack } from '@codesandbox/sandpack-react';
 
 // Applies the AI's find/replace edits to a copy of the files.
@@ -26,6 +26,13 @@ export default function ChatPanel() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const messagesRef = useRef(null);
+
+  // Keep the newest message in view.
+  useEffect(() => {
+    const box = messagesRef.current;
+    box.scrollTop = box.scrollHeight;
+  }, [messages, loading]);
 
   function addMessage(role, text) {
     setMessages((prev) => [...prev, { role, text }]);
@@ -69,7 +76,7 @@ export default function ChatPanel() {
 
   return (
     <div className="chat-panel">
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesRef}>
         {messages.length === 0 && (
           <div className="chat-empty">Try: "make the button red"</div>
         )}
