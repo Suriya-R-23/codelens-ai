@@ -21,7 +21,8 @@ function applyEdits(files, edits) {
 
 // `onChange` is called with { path: { before, after } } after the AI edits the code,
 // and `reviewing` is true while that change waits to be kept or rejected.
-export default function ChatPanel({ reviewing, onChange }) {
+// `selected` is the element picked in the preview (or null).
+export default function ChatPanel({ reviewing, onChange, selected, onClearSelection }) {
   const { sandpack } = useSandpack();
   const { files, updateFile } = sandpack;
 
@@ -51,7 +52,7 @@ export default function ChatPanel({ reviewing, onChange }) {
       // Send only the code for each file (Sandpack stores extra info too).
       const currentCode = {};
       for (const [path, file] of Object.entries(files)) {
-        currentCode[path] = file.code;
+        if (!file.hidden) currentCode[path] = file.code;
       }
 
       const response = await fetch('/api/edit', {
@@ -137,6 +138,12 @@ export default function ChatPanel({ reviewing, onChange }) {
         ))}
         {loading && <div className="chat-message ai">Thinking…</div>}
       </div>
+      {selected && (
+        <div className="selection-chip">
+          🎯 Selected: &lt;{selected.tag}&gt; {selected.text && `“${selected.text.slice(0, 30)}”`}
+          <button onClick={onClearSelection} title="Clear selection">✕</button>
+        </div>
+      )}
       <form className="chat-form" onSubmit={handleSubmit}>
         <input
           className="chat-input"
