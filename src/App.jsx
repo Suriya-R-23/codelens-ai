@@ -45,6 +45,8 @@ function Layout() {
   // An AI change waiting for the user to keep or reject it, e.g.
   // { '/App.js': { before: '...old code...', after: '...new code...' } }
   const [review, setReview] = useState(null);
+  // AI changes the user kept, oldest first, so they can be undone later.
+  const [history, setHistory] = useState([]);
 
   // The AI's edits are already applied, so the preview shows the "after".
   // Here we remember the "before" so the change can be rejected.
@@ -54,7 +56,20 @@ function Layout() {
   }
 
   function keepChange() {
+    setHistory((prev) => [...prev, review]);
     setReview(null);
+  }
+
+  function undoLastChange() {
+    const last = history[history.length - 1];
+    const editedSince = Object.entries(last).some(([path, { after }]) => files[path]?.code !== after);
+    if (editedSince && !window.confirm('You edited this code after the AI change. Undo anyway?')) {
+      return;
+    }
+    for (const [path, { before }] of Object.entries(last)) {
+      updateFile(path, before);
+    }
+    setHistory((prev) => prev.slice(0, -1));
   }
 
   function rejectChange() {
@@ -81,6 +96,14 @@ function Layout() {
                 {filePath}
               </div>
             ))}
+            <button
+              className="undo-button"
+              onClick={undoLastChange}
+              disabled={history.length === 0 || review !== null}
+              title="Undo the last AI change you kept"
+            >
+              ↶ Undo AI change
+            </button>
           </div>
           {review && (
             <div className="review-bar">

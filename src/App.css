@@ -48,6 +48,28 @@
   color: #fff;
 }
 
+.undo-button {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background: transparent;
+  color: #ccc;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.undo-button:hover:not(:disabled) {
+  background: #37373d;
+  color: #fff;
+}
+
+.undo-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .review-bar {
   display: flex;
   align-items: center;
