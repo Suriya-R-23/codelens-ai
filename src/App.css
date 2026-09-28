@@ -60,6 +60,10 @@
   cursor: pointer;
 }
 
+.redo-button {
+  margin-left: 0;
+}
+
 .undo-button:hover:not(:disabled) {
   background: #37373d;
   color: #fff;

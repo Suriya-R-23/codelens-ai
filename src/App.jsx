@@ -47,6 +47,8 @@ function Layout() {
   const [review, setReview] = useState(null);
   // AI changes the user kept, oldest first, so they can be undone later.
   const [history, setHistory] = useState([]);
+  // Changes that were undone, newest last, so they can be redone.
+  const [redoStack, setRedoStack] = useState([]);
 
   // The AI's edits are already applied, so the preview shows the "after".
   // Here we remember the "before" so the change can be rejected.
@@ -57,19 +59,37 @@ function Layout() {
 
   function keepChange() {
     setHistory((prev) => [...prev, review]);
+    setRedoStack([]); // a new change replaces anything that was undone
     setReview(null);
+  }
+
+  // Checks the files still look the way the change expects; if the user edited
+  // them by hand since, asks before overwriting their edits.
+  function okToOverwrite(change, expected, action) {
+    const editedSince = Object.entries(change).some(
+      ([path, versions]) => files[path]?.code !== versions[expected],
+    );
+    return !editedSince || window.confirm(`You edited this code by hand since. ${action} anyway?`);
   }
 
   function undoLastChange() {
     const last = history[history.length - 1];
-    const editedSince = Object.entries(last).some(([path, { after }]) => files[path]?.code !== after);
-    if (editedSince && !window.confirm('You edited this code after the AI change. Undo anyway?')) {
-      return;
-    }
+    if (!okToOverwrite(last, 'after', 'Undo')) return;
     for (const [path, { before }] of Object.entries(last)) {
       updateFile(path, before);
     }
     setHistory((prev) => prev.slice(0, -1));
+    setRedoStack((prev) => [...prev, last]);
+  }
+
+  function redoLastChange() {
+    const last = redoStack[redoStack.length - 1];
+    if (!okToOverwrite(last, 'before', 'Redo')) return;
+    for (const [path, { after }] of Object.entries(last)) {
+      updateFile(path, after);
+    }
+    setRedoStack((prev) => prev.slice(0, -1));
+    setHistory((prev) => [...prev, last]);
   }
 
   function rejectChange() {
@@ -102,7 +122,15 @@ function Layout() {
               disabled={history.length === 0 || review !== null}
               title="Undo the last AI change you kept"
             >
-              ↶ Undo AI change
+              ↶ Undo
+            </button>
+            <button
+              className="undo-button redo-button"
+              onClick={redoLastChange}
+              disabled={redoStack.length === 0 || review !== null}
+              title="Redo the AI change you just undid"
+            >
+              ↷ Redo
             </button>
           </div>
           {review && (
