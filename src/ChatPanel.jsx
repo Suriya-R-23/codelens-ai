@@ -19,7 +19,9 @@ function applyEdits(files, edits) {
   return updated;
 }
 
-export default function ChatPanel() {
+// `onChange` is called with { path: { before, after } } after the AI edits the code,
+// and `reviewing` is true while that change waits to be kept or rejected.
+export default function ChatPanel({ reviewing, onChange }) {
   const { sandpack } = useSandpack();
   const { files, updateFile } = sandpack;
 
@@ -67,10 +69,15 @@ export default function ChatPanel() {
       }
 
       const updated = applyEdits(files, data.edits);
+      const changes = {};
       for (const [path, code] of Object.entries(updated)) {
+        changes[path] = { before: files[path].code, after: code };
         updateFile(path, code);
       }
       addMessage({ role: 'ai', text: data.explanation });
+      if (Object.keys(changes).length > 0) {
+        onChange(changes);
+      }
     } catch (error) {
       addMessage({ role: 'error', text: error.message });
     } finally {
@@ -91,7 +98,7 @@ export default function ChatPanel() {
   function handleSubmit(event) {
     event.preventDefault();
     const request = input.trim();
-    if (!request || loading) return;
+    if (!request || loading || reviewing) return;
 
     setInput('');
     // If the AI is waiting on a question, a typed message counts as the answer.
@@ -135,10 +142,16 @@ export default function ChatPanel() {
           className="chat-input"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder={pending ? 'Pick an option above or type your answer…' : 'Describe a change…'}
-          disabled={loading}
+          placeholder={
+            reviewing
+              ? 'Keep or reject the AI change first (buttons above the editor)'
+              : pending
+                ? 'Pick an option above or type your answer…'
+                : 'Describe a change…'
+          }
+          disabled={loading || reviewing}
         />
-        <button className="chat-send" type="submit" disabled={loading || !input.trim()}>
+        <button className="chat-send" type="submit" disabled={loading || reviewing || !input.trim()}>
           Send
         </button>
       </form>
