@@ -99,6 +99,33 @@
   color: #fff;
 }
 
+.chat-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chat-option {
+  padding: 5px 12px;
+  border: 1px solid #2563eb;
+  border-radius: 14px;
+  background: transparent;
+  color: #93b4f5;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chat-option:hover:not(:disabled) {
+  background: #2563eb;
+  color: #fff;
+}
+
+.chat-option:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .chat-message.error {
   background: #5a1d1d;
   color: #f8b4b4;
