@@ -115,6 +115,55 @@
 .right-pane {
   width: 55%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-toolbar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: #252526;
+  border-bottom: 1px solid #333;
+}
+
+.select-button {
+  padding: 5px 12px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background: transparent;
+  color: #ccc;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.select-button:hover,
+.select-button.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.selection-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px;
+  padding: 4px 10px;
+  border: 1px solid #f59e0b;
+  border-radius: 14px;
+  color: #fcd34d;
+  font-size: 13px;
+  align-self: flex-start;
+}
+
+.selection-chip button {
+  border: none;
+  background: transparent;
+  color: #fcd34d;
+  cursor: pointer;
+  font-size: 14px;
 }
 
 .bottom-row {

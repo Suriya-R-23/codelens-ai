@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SandpackProvider, SandpackPreview, useSandpack } from '@codesandbox/sandpack-react';
 import Editor, { DiffEditor } from '@monaco-editor/react';
 import ChatPanel from './ChatPanel';
+// The click-to-select helper that runs inside the preview, loaded as plain text.
+import inspectorCode from './sandbox/codelens-inspector.js?raw';
 import './App.css';
 
 const initialFiles = {
@@ -22,7 +24,29 @@ const initialFiles = {
     </div>
   );
 }`,
+  // Same as Sandpack's default entry file, plus one line that loads the helper.
+  '/index.js': `import React, { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./styles.css";
+import "./codelens-inspector"; // CodeLens: lets you click elements in the preview
+
+import App from "./App";
+
+const root = createRoot(document.getElementById("root"));
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);`,
+  // Hidden from the file tabs and never sent to the AI.
+  '/codelens-inspector.js': { code: inspectorCode, hidden: true },
 };
+
+// Sends a message to the click-to-select helper inside the preview.
+function sendToPreview(message) {
+  const iframe = document.querySelector('.right-pane iframe');
+  iframe?.contentWindow?.postMessage({ source: 'codelens', ...message }, '*');
+}
 
 // Tells Monaco which syntax highlighting to use, based on the file extension.
 const LANGUAGES = {
@@ -99,6 +123,45 @@ function Layout() {
     setReview(null);
   }
 
+  // Click-to-select: whether select mode is on, and the element the user picked.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const selectingRef = useRef(false); // same value, readable inside the message listener
+
+  // Tell the preview when select mode turns on or off.
+  useEffect(() => {
+    selectingRef.current = selecting;
+    sendToPreview({ type: 'select-mode', on: selecting });
+  }, [selecting]);
+
+  // Listen for messages from the helper inside the preview.
+  useEffect(() => {
+    function handleMessage(event) {
+      const iframe = document.querySelector('.right-pane iframe');
+      const message = event.data;
+      if (event.source !== iframe?.contentWindow || message?.source !== 'codelens') return;
+
+      if (message.type === 'selected') {
+        setSelected(message.element);
+        setSelecting(false);
+      }
+      if (message.type === 'cancelled') {
+        setSelecting(false);
+      }
+      // The preview (re)loaded: tell it the current mode.
+      if (message.type === 'ready') {
+        sendToPreview({ type: 'select-mode', on: selectingRef.current });
+      }
+    }
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  function clearSelection() {
+    setSelected(null);
+    sendToPreview({ type: 'clear-selection' });
+  }
+
   // While reviewing, show the diff of the open file (or the first changed file).
   const reviewFile = review && (review[activeFile] ? activeFile : Object.keys(review)[0]);
 
@@ -107,7 +170,7 @@ function Layout() {
       <div className="top-row">
         <div className="left-pane">
           <div className="file-explorer">
-            {Object.keys(files).map((filePath) => (
+            {Object.keys(files).filter((filePath) => !files[filePath].hidden).map((filePath) => (
               <div
                 key={filePath}
                 className={`file-item ${filePath === activeFile ? 'active' : ''}`}
@@ -163,15 +226,29 @@ function Layout() {
           </div>
         </div>
         <div className="right-pane">
+          <div className="preview-toolbar">
+            <button
+              className={`select-button ${selecting ? 'active' : ''}`}
+              onClick={() => setSelecting(!selecting)}
+              title="Click an element in the preview to select it (Esc to cancel)"
+            >
+              🎯 {selecting ? 'Click an element… (Esc to cancel)' : 'Select element'}
+            </button>
+          </div>
           <SandpackPreview
             showOpenInCodeSandbox={false}
             showRefreshButton={true}
-            style={{ height: '100%' }}
+            style={{ flex: 1, minHeight: 0 }}
           />
         </div>
       </div>
       <div className="bottom-row">
-        <ChatPanel reviewing={review !== null} onChange={startReview} />
+        <ChatPanel
+          reviewing={review !== null}
+          onChange={startReview}
+          selected={selected}
+          onClearSelection={clearSelection}
+        />
       </div>
     </div>
   );

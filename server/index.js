@@ -30,6 +30,11 @@ page and a button have a background. Then:
 If the request already includes the user's answer to an earlier question, do not
 ask again. If there is one obvious reading, do not ask. Just make the edit.
 
+The user may have clicked an element in the live preview to select it. If so, words
+like "it", "this" or "the button" refer to that element: find it in the code and
+change it, without asking which element they mean (unless they clearly name a
+different one).
+
 Otherwise make the smallest possible code change (type "edit"), as find/replace pairs:
 - "file" is the file path exactly as given (e.g. "/App.js").
 - "find" must be copied exactly from the current file, including spaces and
@@ -89,7 +94,7 @@ const EDIT_SCHEMA = {
 };
 
 app.post('/api/edit', async (req, res) => {
-  const { request, files } = req.body ?? {};
+  const { request, files, selected } = req.body ?? {};
   if (!request || !files) {
     return res.status(400).json({ error: 'Send { request, files }.' });
   }
@@ -99,9 +104,14 @@ app.post('/api/edit', async (req, res) => {
     .map(([path, code]) => `<file path="${path}">\n${code}\n</file>`)
     .join('\n\n');
 
+  // Describe the element the user clicked in the preview, if any.
+  const selectedText = selected
+    ? `\n\nThe user selected this element in the preview:\n${JSON.stringify(selected, null, 2)}`
+    : '';
+
   try {
     const response = await generateWithFallback({
-      contents: `Current files:\n\n${filesText}\n\nRequest: ${request}`,
+      contents: `Current files:\n\n${filesText}${selectedText}\n\nRequest: ${request}`,
       config: {
         systemInstruction: SYSTEM_PROMPT,
         responseMimeType: 'application/json',
